@@ -1,0 +1,93 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="AI改错别字，用 AI 快速修正错别字。保留你的表达，逐处审阅每一个修改。">
+  <meta name="color-scheme" content="light dark">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src https: http:; object-src 'none'; base-uri 'none'; form-action 'none'">
+  <title>AI改错别字</title>
+  <link rel="icon" href="./favicon.svg" type="image/svg+xml">
+  <script src="./theme.js"></script>
+  <link rel="stylesheet" href="./styles.css">
+  <link rel="stylesheet" href="./theme.css">
+  <script defer src="./vendor/diff.min.js"></script>
+  <script defer src="./core.js"></script>
+  <script defer src="./api.js"></script>
+  <script defer src="./app.js"></script>
+</head>
+<body>
+  <svg class="icon-library" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+    <symbol id="i-spark" viewBox="0 0 24 24"><path d="m12 3 2.6 6.4L21 12l-6.4 2.6L12 21l-2.6-6.4L3 12l6.4-2.6L12 3Z"/><path d="M20 2v4M18 4h4"/></symbol>
+    <symbol id="i-settings" viewBox="0 0 24 24"><path d="M4 7h16M4 17h16"/><circle cx="9" cy="7" r="3"/><circle cx="15" cy="17" r="3"/></symbol>
+    <symbol id="i-check" viewBox="0 0 24 24"><path d="m5 12 4 4L19 6"/></symbol>
+    <symbol id="i-copy" viewBox="0 0 24 24"><rect x="8" y="8" width="12" height="13" rx="2"/><path d="M16 8V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h3"/></symbol>
+    <symbol id="i-file" viewBox="0 0 24 24"><path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9l-6-6Z"/><path d="M14 3v6h6M8 13h8M8 17h5"/></symbol>
+    <symbol id="i-lock" viewBox="0 0 24 24"><rect x="5" y="10" width="14" height="11" rx="3"/><path d="M8 10V7a4 4 0 0 1 8 0v3M12 14v3"/></symbol>
+    <symbol id="i-close" viewBox="0 0 24 24"><path d="m6 6 12 12M6 18 18 6"/></symbol>
+    <symbol id="i-reset" viewBox="0 0 24 24"><path d="M3 5v6h6M3 11a9 9 0 1 1 2.7 7"/></symbol>
+    <symbol id="i-theme" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"/><path d="M12 4v16a8 8 0 0 0 0-16Z" fill="currentColor" stroke="none"/></symbol>
+  </svg>
+  <header class="site-header">
+    <a class="brand" href="./" aria-label="AI改错别字首页"><span class="brand-icon">字<span>✓</span></span><span class="brand-name">AI改错别字</span></a>
+    <div class="header-actions"><span class="provider">支持 OpenAI 兼容接口</span><div class="theme-control">
+      <button type="button" id="theme-trigger" aria-label="颜色模式：跟随系统" aria-haspopup="menu" aria-expanded="false" aria-controls="theme-menu"><svg class="icon" aria-hidden="true"><use href="#i-theme"/></svg><span id="theme-label">跟随系统</span><svg class="theme-chevron" viewBox="0 0 16 16" aria-hidden="true"><path d="m4 6 4 4 4-4"/></svg></button>
+      <div id="theme-menu" class="theme-menu" role="menu" aria-label="颜色模式" hidden>
+        <button type="button" role="menuitemradio" aria-checked="true" data-theme-mode="system" tabindex="-1">跟随系统<span class="theme-check" aria-hidden="true">✓</span></button>
+        <button type="button" role="menuitemradio" aria-checked="false" data-theme-mode="light" tabindex="-1">浅色模式<span class="theme-check" aria-hidden="true">✓</span></button>
+        <button type="button" role="menuitemradio" aria-checked="false" data-theme-mode="dark" tabindex="-1">深色模式<span class="theme-check" aria-hidden="true">✓</span></button>
+      </div>
+    </div><button id="open-settings" class="button button-outline"><svg class="icon"><use href="#i-settings"/></svg><span>API 设置</span><span id="key-indicator" class="key-indicator" hidden></span></button></div>
+  </header>
+
+  <main class="workspace">
+
+    <section class="editor-card" aria-labelledby="input-title">
+      <div class="card-heading"><div class="section-label"><svg class="icon"><use href="#i-file"/></svg><h2 id="input-title">原始文本</h2><span class="label-tag">待校对</span></div><div class="input-actions"><button id="load-example" class="button button-text">插入示例</button><span class="divider"></span><button id="clear-input" class="button button-text" disabled>清空</button></div></div>
+      <label class="sr-only" for="source-text">需要纠错的原文</label>
+      <textarea id="source-text" maxlength="12000" spellcheck="false" placeholder="在这里输入或粘贴文字…&#10;&#10;一封邮件、一段笔记，或刚刚写好的文案。" aria-describedby="editor-hint"></textarea>
+      <div class="input-meta"><span id="editor-hint">原文会在点击纠错后发送至你配置的 AI 接口</span><span><span id="character-count">0</span><span class="count-limit"> / 12,000 字</span></span></div>
+      <div class="editor-toolbar"><div class="mode-group" role="group" aria-label="校对模式"><button class="mode-button active" data-mode="typo" aria-pressed="true">只改错别字</button><button class="mode-button" data-mode="proofread" aria-pressed="false">基础校对<span class="mode-detail"> · 语法与标点</span></button></div><div class="run-actions"><span class="shortcut"><kbd>⌘</kbd><kbd>Enter</kbd></span><button id="cancel-request" class="button button-outline" hidden>取消</button><button id="correct-button" class="button button-primary" disabled><svg class="icon"><use href="#i-spark"/></svg><span id="correct-label">AI 自动纠错</span></button></div></div>
+    </section>
+
+    <div id="message" class="message" role="status" aria-live="polite" hidden></div>
+
+    <section id="review-section" class="review-section" aria-labelledby="review-title">
+      <div class="review-heading"><div><div class="title-line"><h2 id="review-title">修改审阅</h2><span id="review-badge" class="review-badge">等待校对</span></div><p id="review-description">对照原文，选择你想保留的修改。</p></div><div id="review-tools" class="review-tools" hidden><button id="reset-review" class="button button-text" disabled><svg class="icon"><use href="#i-reset"/></svg>撤回全部</button><button id="accept-all" class="button button-dark"><svg class="icon"><use href="#i-check"/></svg>全部采纳</button></div></div>
+
+      <div id="empty-state" class="empty-state"><div class="empty-illustration" aria-hidden="true"><div class="paper paper-before"><span></span><span></span><span></span></div><div class="paper paper-after"><span></span><span></span><span></span><b>✓</b></div></div><h3>好文字，值得再看一眼</h3><p>输入文字并开始纠错，修改建议会出现在这里。</p><button id="preview-example" class="button button-outline">先体验一下纠错效果</button><small>使用内置示例，无需 API Key</small></div>
+
+      <div id="review-card" class="review-card" hidden>
+        <div class="review-tabs-bar"><div class="review-tabs" role="tablist" aria-label="审阅视图"><button id="diff-tab" class="review-tab active" role="tab" aria-selected="true" aria-controls="diff-panel" tabindex="0">左右对比</button><button id="result-tab" class="review-tab" role="tab" aria-selected="false" aria-controls="result-panel" tabindex="-1">最终文本</button></div><div class="legend"><span><i class="legend-before"></i>原文</span><span><i class="legend-after"></i>建议修改</span></div></div>
+        <div id="diff-panel" role="tabpanel" aria-labelledby="diff-tab"><div class="diff-scroll"><div class="diff-table"><div class="diff-column-head"><span>原文<span class="column-note"> ORIGINAL</span></span><span>AI 纠正<span class="column-note"> CORRECTED</span></span></div><div id="diff-rows"></div></div></div><div id="diff-hint" class="diff-hint">点击高亮文字采纳或撤回修改，也可以逐行采纳。</div></div>
+        <div id="result-panel" role="tabpanel" aria-labelledby="result-tab" hidden><div class="result-caption">仅包含你已采纳的修改</div><pre id="result-text" tabindex="0"></pre></div>
+        <div class="review-footer"><div class="progress-summary"><svg class="icon"><use href="#i-check"/></svg><span id="review-progress">已采纳 0 处修改</span></div><div class="result-actions"><button id="continue-editing" class="button button-text">用结果继续编辑</button><button id="copy-result" class="button button-outline"><svg class="icon"><use href="#i-copy"/></svg>复制结果</button></div></div>
+      </div>
+    </section>
+    <footer class="page-footer"><span><svg class="icon"><use href="#i-lock"/></svg>API 配置保存在此浏览器，刷新后自动恢复</span><span>认真表达，轻松校对。<span class="footer-brand">AI改错别字</span></span></footer>
+  </main>
+
+  <dialog id="settings-dialog" aria-labelledby="settings-title">
+    <form id="settings-form">
+      <div class="dialog-heading"><div><p class="eyebrow">连接你的模型</p><h2 id="settings-title">AI 接口设置</h2></div><button type="button" id="close-settings" class="icon-button" aria-label="关闭设置"><svg class="icon"><use href="#i-close"/></svg></button></div>
+      <p class="dialog-description">支持 OpenAI 兼容接口，使用你选择的服务和模型校对文字。</p>
+      <label for="api-key">API Key</label>
+      <div class="key-input-wrap"><input id="api-key" type="password" placeholder="填写服务商提供的 API Key" autocomplete="off" autocapitalize="off" spellcheck="false" aria-describedby="key-help"><button type="button" id="toggle-key" class="button button-text" aria-label="显示 API Key">显示</button></div>
+      <p id="key-help" class="field-help">仅发送至下方配置的接口；无需密钥的本地服务可留空。</p>
+      <label for="base-url">接口 URL（Base URL）</label>
+      <input id="base-url" class="settings-input" type="url" required placeholder="https://api.openai.com/v1" autocomplete="off" autocapitalize="off" spellcheck="false" aria-describedby="url-help">
+      <p id="url-help" class="field-help">填写服务商提供的基础地址（含 /v1 等路径），也支持以 /chat/completions 结尾的完整地址。</p>
+      <label for="model-name">模型名称（Model）</label>
+      <input id="model-name" class="settings-input" type="text" required placeholder="填写该接口支持的模型名称" autocomplete="off" autocapitalize="off" spellcheck="false" aria-describedby="model-help">
+      <p id="model-help" class="field-help">使用服务商提供的准确模型 ID，可自由填写。</p>
+      <div class="privacy-note"><svg class="icon"><use href="#i-lock"/></svg><p>Key、接口 URL 和模型名称保存在此浏览器，刷新或重新打开后自动恢复。<br>点击纠错后，Key 和原文会发送至配置的接口。</p></div>
+      <p id="settings-error" class="message error" role="alert" hidden></p>
+      <div class="dialog-footer"><button type="button" id="clear-settings" class="button button-text">清除配置</button><button type="submit" class="button button-primary">保存设置</button></div>
+    </form>
+  </dialog>
+  <dialog id="confirm-dialog" aria-labelledby="confirm-title"><div class="dialog-heading"><h2 id="confirm-title">替换当前文本？</h2></div><p id="confirm-description" class="dialog-description"></p><div class="confirm-actions"><button id="confirm-cancel" class="button button-outline">取消</button><button id="confirm-ok" class="button button-primary">继续</button></div></dialog>
+  <dialog id="copy-dialog" aria-labelledby="copy-title"><div class="dialog-heading"><h2 id="copy-title">复制校对结果</h2><button id="close-copy" class="icon-button" aria-label="关闭复制窗口"><svg class="icon"><use href="#i-close"/></svg></button></div><p class="dialog-description">请选中文本后，使用 ⌘C 或 Ctrl+C 复制。</p><textarea id="copy-fallback" readonly aria-label="待复制的校对结果"></textarea></dialog>
+  <div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
+  <noscript><p class="message">请启用 JavaScript 以使用AI改错别字。</p></noscript>
+</body>
+</html>
